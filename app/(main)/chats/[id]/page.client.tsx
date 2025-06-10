@@ -6,12 +6,12 @@ import { splitByFirstCodeFence } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, use, useEffect, useRef, useState } from "react";
-import { ChatCompletionStream } from "together-ai";
+import Together from "together-ai";
 import ChatBox from "./chat-box";
 import ChatLog from "./chat-log";
 import CodeViewer from "./code-viewer";
 import CodeViewerLayout from "./code-viewer-layout";
-import type { Chat } from "./page";
+import type { Chat, Message } from "./page";
 import { Context } from "../../providers";
 
 export default function PageClient({ chat }: { chat: Chat }) {
@@ -21,73 +21,83 @@ export default function PageClient({ chat }: { chat: Chat }) {
   >(context.streamPromise);
   const [streamText, setStreamText] = useState("");
   const [isShowingCodeViewer, setIsShowingCodeViewer] = useState(
-    chat.messages.some((m) => m.role === "assistant"),
+    chat.messages.some((m: Message) => m.role === "assistant"),
   );
   const [activeTab, setActiveTab] = useState<"code" | "preview">("preview");
   const router = useRouter();
   const isHandlingStreamRef = useRef(false);
   const [activeMessage, setActiveMessage] = useState(
-    chat.messages.filter((m) => m.role === "assistant").at(-1),
+    chat.messages.filter((m: Message) => m.role === "assistant").at(-1),
   );
 
   useEffect(() => {
-    async function f() {
-      if (!streamPromise || isHandlingStreamRef.current) return;
+    if (!streamPromise || isHandlingStreamRef.current) return;
+    isHandlingStreamRef.current = true;
 
-      isHandlingStreamRef.current = true;
-      context.setStreamPromise(undefined);
-
-      const stream = await streamPromise;
+    streamPromise.then(async (stream) => {
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+      let finalText = "";
       let didPushToCode = false;
       let didPushToPreview = false;
 
-      ChatCompletionStream.fromReadableStream(stream)
-        .on("content", (delta, content) => {
-          setStreamText((text) => text + delta);
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-          if (
-            !didPushToCode &&
-            splitByFirstCodeFence(content).some(
-              (part) => part.type === "first-code-fence-generating",
-            )
-          ) {
-            didPushToCode = true;
-            setIsShowingCodeViewer(true);
-            setActiveTab("code");
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (!line) continue;
+            try {
+              const { choices } = JSON.parse(line);
+              const delta = choices?.[0]?.delta?.content || "";
+              if (delta) {
+                finalText += delta;
+                setStreamText(finalText);
+
+                if (
+                  !didPushToCode &&
+                  splitByFirstCodeFence(finalText).some(
+                    (part) => part.type === "first-code-fence-generating"
+                  )
+                ) {
+                  didPushToCode = true;
+                  setIsShowingCodeViewer(true);
+                  setActiveTab("code");
+                }
+
+                if (
+                  !didPushToPreview &&
+                  splitByFirstCodeFence(finalText).some(
+                    (part) => part.type === "first-code-fence"
+                  )
+                ) {
+                  didPushToPreview = true;
+                  setIsShowingCodeViewer(true);
+                  setActiveTab("preview");
+                }
+              }
+            } catch (e) {
+              console.error("Error parsing line:", e);
+            }
           }
+        }
 
-          if (
-            !didPushToPreview &&
-            splitByFirstCodeFence(content).some(
-              (part) => part.type === "first-code-fence",
-            )
-          ) {
-            didPushToPreview = true;
-            setIsShowingCodeViewer(true);
-            setActiveTab("preview");
-          }
-        })
-        .on("finalContent", async (finalText) => {
-          startTransition(async () => {
-            const message = await createMessage(
-              chat.id,
-              finalText,
-              "assistant",
-            );
-
-            startTransition(() => {
-              isHandlingStreamRef.current = false;
-              setStreamText("");
-              setStreamPromise(undefined);
-              setActiveMessage(message);
-              router.refresh();
-            });
-          });
-        });
-    }
-
-    f();
-  }, [chat.id, router, streamPromise, context]);
+        const message = await createMessage(chat.id, finalText, "assistant");
+        setStreamPromise(undefined);
+        setStreamText("");
+        setActiveMessage(message);
+        router.refresh();
+      } catch (error) {
+        console.error("Error reading stream:", error);
+      } finally {
+        isHandlingStreamRef.current = false;
+      }
+    });
+  }, [streamPromise, chat.id, router]);
 
   return (
     <div className="h-dvh">
