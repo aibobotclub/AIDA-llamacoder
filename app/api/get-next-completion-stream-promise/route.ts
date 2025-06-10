@@ -4,10 +4,12 @@ import { Pool } from "@neondatabase/serverless";
 import { z } from "zod";
 import Together from "together-ai";
 
+export const runtime = 'edge';
+export const maxDuration = 300;
+
+const prisma = new PrismaClient();
+
 export async function POST(req: Request) {
-  const neon = new Pool({ connectionString: process.env.DATABASE_URL });
-  const adapter = new PrismaNeon(neon);
-  const prisma = new PrismaClient({ adapter });
   const { messageId, model } = await req.json();
 
   const message = await prisma.message.findUnique({
@@ -59,6 +61,3 @@ export async function POST(req: Request) {
 
   return new Response(res.toReadableStream());
 }
-
-export const runtime = "edge";
-export const maxDuration = 45;
