@@ -9,9 +9,6 @@ import {
 import { notFound } from "next/navigation";
 import Together from "together-ai";
 
-export const runtime = 'edge';
-export const maxDuration = 300;
-
 export async function createChat(
   prompt: string,
   model: string,
