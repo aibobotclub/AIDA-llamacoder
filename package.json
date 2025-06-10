@@ -30,7 +30,7 @@
     "shiki": "^1.2.0",
     "tailwind-merge": "^2.2.1",
     "together-ai": "^0.3.0",
-    "use-stick-to-bottom": "^1.2.1",
+    "use-stick-to-bottom": "^1.0.43",
     "zod": "^3.22.4"
   },
   "devDependencies": {
