@@ -83,88 +83,103 @@ function AssistantMessage({
   onMessageClick?: (v: Message) => void;
 }) {
   const parts = splitByFirstCodeFence(content);
+  const codePart = parts.find(part => part.type === "code");
+  const fileName = codePart ? getFileName(codePart.content) : { name: "App", extension: "tsx" };
 
   return (
     <div>
-      {parts.map((part, i) => (
-        <div key={i}>
-          {part.type === "text" ? (
-            <Markdown className="prose">{part.content}</Markdown>
-          ) : part.type === "first-code-fence-generating" ? (
-            <div className="my-4">
-              <button
-                disabled
-                className="inline-flex w-full animate-pulse items-center gap-2 rounded-lg border-4 border-gray-300 p-1.5"
-              >
-                <div className="flex size-8 items-center justify-center rounded bg-gray-300 font-bold">
-                  V{version}
-                </div>
-                <div className="flex flex-col gap-0.5 text-left leading-none">
-                  <div className="text-sm font-medium leading-none">
-                    Generating...
-                  </div>
-                </div>
-              </button>
-            </div>
-          ) : message ? (
-            <div className="my-4">
-              <button
-                className={`${isActive ? "bg-white" : "bg-gray-300 hover:border-gray-400 hover:bg-gray-400"} inline-flex w-full items-center gap-2 rounded-lg border-4 border-gray-300 p-1.5`}
-                onClick={() => onMessageClick(message)}
-              >
-                <div
-                  className={`${isActive ? "bg-gray-300" : "bg-gray-200"} flex size-8 items-center justify-center rounded font-bold`}
+      {parts.map((part, i) => {
+        const isCodePart = part.type === "code";
+        return (
+          <div key={i}>
+            {part.type === "text" ? (
+              <Markdown className="prose">{part.content}</Markdown>
+            ) : part.type === "first-code-fence-generating" ? (
+              <div className="my-4">
+                <button
+                  disabled
+                  className="inline-flex w-full animate-pulse items-center gap-2 rounded-lg border-4 border-gray-300 p-1.5"
                 >
-                  V{version}
-                </div>
-                <div className="flex flex-col gap-0.5 text-left leading-none">
-                  <div className="text-sm font-medium leading-none">
-                    {toTitleCase(part.filename.name)}{" "}
-                    {version !== 1 && `v${version}`}
+                  <div className="flex size-8 items-center justify-center rounded bg-gray-300 font-bold">
+                    V{version}
                   </div>
-                  <div className="text-xs leading-none text-gray-500">
-                    {part.filename.name}
-                    {version !== 1 && `-v${version}`}
-                    {"."}
-                    {part.filename.extension}
+                  <div className="flex flex-col gap-0.5 text-left leading-none">
+                    <div className="text-sm font-medium leading-none">
+                      Generating...
+                    </div>
                   </div>
-                </div>
-                <div className="ml-auto">
-                  <ArrowLeftIcon />
-                </div>
-              </button>
-            </div>
-          ) : (
-            <div className="my-4">
-              <button
-                className="inline-flex w-full items-center gap-2 rounded-lg border-4 border-gray-300 p-1.5"
-                disabled
-              >
-                <div className="flex size-8 items-center justify-center rounded bg-gray-300 font-bold">
-                  V{version}
-                </div>
-                <div className="flex flex-col gap-0.5 text-left leading-none">
-                  <div className="text-sm font-medium leading-none">
-                    {toTitleCase(part.filename.name)}{" "}
-                    {version !== 1 && `v${version}`}
+                </button>
+              </div>
+            ) : isCodePart && message ? (
+              <div className="my-4">
+                <button
+                  className={`${isActive ? "bg-white" : "bg-gray-300 hover:border-gray-400 hover:bg-gray-400"} inline-flex w-full items-center gap-2 rounded-lg border-4 border-gray-300 p-1.5`}
+                  onClick={() => onMessageClick(message)}
+                >
+                  <div
+                    className={`${isActive ? "bg-gray-300" : "bg-gray-200"} flex size-8 items-center justify-center rounded font-bold`}
+                  >
+                    V{version}
                   </div>
-                  <div className="text-xs leading-none text-gray-500">
-                    {part.filename.name}
-                    {version !== 1 && `-v${version}`}
-                    {"."}
-                    {part.filename.extension}
+                  <div className="flex flex-col gap-0.5 text-left leading-none">
+                    <div className="text-sm font-medium leading-none">
+                      {toTitleCase(fileName.name)}{" "}
+                      {version !== 1 && `v${version}`}
+                    </div>
+                    <div className="text-xs leading-none text-gray-500">
+                      {fileName.name}
+                      {version !== 1 && `-v${version}`}
+                      {"."}
+                      {fileName.extension}
+                    </div>
                   </div>
-                </div>
-                <div className="ml-auto">
-                  <ArrowLeftIcon />
-                </div>
-              </button>
-            </div>
-          )}
-        </div>
-      ))}
+                  <div className="ml-auto">
+                    <ArrowLeftIcon />
+                  </div>
+                </button>
+              </div>
+            ) : isCodePart ? (
+              <div className="my-4">
+                <button
+                  className="inline-flex w-full items-center gap-2 rounded-lg border-4 border-gray-300 p-1.5"
+                  disabled
+                >
+                  <div className="flex size-8 items-center justify-center rounded bg-gray-300 font-bold">
+                    V{version}
+                  </div>
+                  <div className="flex flex-col gap-0.5 text-left leading-none">
+                    <div className="text-sm font-medium leading-none">
+                      {toTitleCase(fileName.name)}{" "}
+                      {version !== 1 && `v${version}`}
+                    </div>
+                    <div className="text-xs leading-none text-gray-500">
+                      {fileName.name}
+                      {version !== 1 && `-v${version}`}
+                      {"."}
+                      {fileName.extension}
+                    </div>
+                  </div>
+                  <div className="ml-auto">
+                    <ArrowLeftIcon />
+                  </div>
+                </button>
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
+}
+
+function getFileName(code: string): { name: string; extension: string } {
+  // Try to find a filename in the first line comments
+  const firstLine = code.split('\n')[0];
+  const fileMatch = firstLine.match(/\/\/ filename: ([^.]+)\.([a-zA-Z]+)/);
+  if (fileMatch) {
+    return { name: fileMatch[1], extension: fileMatch[2] };
+  }
+  return { name: "App", extension: "tsx" };
 }
 
 export function toTitleCase(rawName: string): string {
