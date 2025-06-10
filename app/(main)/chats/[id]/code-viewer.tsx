@@ -10,6 +10,7 @@ import type { Chat, Message } from "./page";
 import { Share } from "./share";
 import { StickToBottom } from "use-stick-to-bottom";
 import dynamic from "next/dynamic";
+import CodePreview from "@/components/code-preview";
 
 const CodeRunner = dynamic(() => import("@/components/code-runner"), {
   ssr: false,
@@ -21,25 +22,31 @@ const SyntaxHighlighter = dynamic(
   },
 );
 
+interface CodeViewerProps {
+  streamText: string;
+  chat: Chat;
+  message?: Message;
+  onMessageChange: (message: Message | undefined) => void;
+  activeTab: "code" | "preview";
+  onTabChange: (tab: "code" | "preview") => void;
+  onClose: () => void;
+  onRequestFix: (error: string) => void;
+}
+
 export default function CodeViewer({
-  chat,
   streamText,
+  chat,
   message,
   onMessageChange,
   activeTab,
   onTabChange,
   onClose,
   onRequestFix,
-}: {
-  chat: Chat;
-  streamText: string;
-  message?: Message;
-  onMessageChange: (v: Message) => void;
-  activeTab: string;
-  onTabChange: (v: "code" | "preview") => void;
-  onClose: () => void;
-  onRequestFix: (e: string) => void;
-}) {
+}: CodeViewerProps) {
+  const text = message?.content || streamText;
+  const codeParts = splitByFirstCodeFence(text);
+  const codeContent = codeParts.find(part => part.type === "code")?.content || "";
+
   const app = message ? extractFirstCodeBlock(message.content) : undefined;
   const streamAppParts = splitByFirstCodeFence(streamText);
   const streamApp = streamAppParts.find(
@@ -75,86 +82,39 @@ export default function CodeViewer({
   const [refresh, setRefresh] = useState(0);
 
   return (
-    <>
-      <div className="flex h-16 shrink-0 items-center justify-between border-b border-gray-300 px-4">
-        <div className="inline-flex items-center gap-4">
-          <button
-            className="text-gray-400 hover:text-gray-700"
-            onClick={onClose}
-          >
-            <CloseIcon className="size-5" />
-          </button>
-          <span>
-            {title} v{currentVersion + 1}
-          </span>
-        </div>
-        {layout === "tabbed" && (
-          <div className="rounded-lg border-2 border-gray-300 p-1">
-            <button
-              onClick={() => onTabChange("code")}
-              data-active={activeTab === "code" ? true : undefined}
-              className="inline-flex h-7 w-16 items-center justify-center rounded text-xs font-medium data-[active]:bg-blue-500 data-[active]:text-white"
-            >
-              Code
-            </button>
-            <button
-              onClick={() => onTabChange("preview")}
-              data-active={activeTab === "preview" ? true : undefined}
-              className="inline-flex h-7 w-16 items-center justify-center rounded text-xs font-medium data-[active]:bg-blue-500 data-[active]:text-white"
-            >
-              Preview
-            </button>
-          </div>
-        )}
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-2 border-b px-4 py-2">
+        <button
+          className={`rounded px-2 py-1 text-sm ${
+            activeTab === "code"
+              ? "bg-gray-100 text-gray-900"
+              : "text-gray-500 hover:text-gray-900"
+          }`}
+          onClick={() => onTabChange("code")}
+        >
+          Code
+        </button>
+        <button
+          className={`rounded px-2 py-1 text-sm ${
+            activeTab === "preview"
+              ? "bg-gray-100 text-gray-900"
+              : "text-gray-500 hover:text-gray-900"
+          }`}
+          onClick={() => onTabChange("preview")}
+        >
+          Preview
+        </button>
       </div>
 
-      {layout === "tabbed" ? (
-        <div className="flex grow flex-col overflow-y-auto bg-white">
-          {activeTab === "code" ? (
-            <StickToBottom
-              className="relative grow overflow-hidden"
-              resize="smooth"
-              initial={streamAppIsGenerating ? "smooth" : false}
-            >
-              <StickToBottom.Content>
-                <SyntaxHighlighter code={code} language={language} />
-              </StickToBottom.Content>
-            </StickToBottom>
-          ) : (
-            <>
-              {language && (
-                <div className="flex h-full items-center justify-center">
-                  <CodeRunner
-                    onRequestFix={onRequestFix}
-                    language={language}
-                    code={code}
-                    key={refresh}
-                  />
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="flex grow flex-col bg-white">
-          <div className="h-1/2 overflow-y-auto">
-            <SyntaxHighlighter code={code} language={language} />
-          </div>
-          <div className="flex h-1/2 flex-col">
-            <div className="border-t border-gray-300 px-4 py-4">Output</div>
-            <div className="flex grow items-center justify-center border-t">
-              {!streamAppIsGenerating && (
-                <CodeRunner
-                  onRequestFix={onRequestFix}
-                  language={language}
-                  code={code}
-                  key={refresh}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="flex-1 overflow-auto">
+        {activeTab === "code" ? (
+          <pre className="p-4">
+            <code>{codeContent}</code>
+          </pre>
+        ) : (
+          <CodePreview code={codeContent} />
+        )}
+      </div>
 
       <div className="flex items-center justify-between border-t border-gray-300 px-4 py-4">
         <div className="inline-flex items-center gap-2.5 text-sm">
@@ -203,6 +163,6 @@ export default function CodeViewer({
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 }

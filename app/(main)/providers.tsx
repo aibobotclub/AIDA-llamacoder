@@ -6,6 +6,7 @@ export const Context = createContext<{
   streamPromise?: Promise<ReadableStream>;
   setStreamPromise: (v: Promise<ReadableStream> | undefined) => void;
 }>({
+  streamPromise: undefined,
   setStreamPromise: () => {},
 });
 

@@ -16,9 +16,7 @@ import { Context } from "../../providers";
 
 export default function PageClient({ chat }: { chat: Chat }) {
   const context = use(Context);
-  const [streamPromise, setStreamPromise] = useState<
-    Promise<ReadableStream> | undefined
-  >(context.streamPromise);
+  const [streamPromise, setStreamPromise] = useState<Promise<ReadableStream> | undefined>(undefined);
   const [streamText, setStreamText] = useState("");
   const [isShowingCodeViewer, setIsShowingCodeViewer] = useState(
     chat.messages.some((m: Message) => m.role === "assistant"),
@@ -46,14 +44,14 @@ export default function PageClient({ chat }: { chat: Chat }) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value);
+          const chunk = decoder.decode(value, { stream: true });
           const lines = chunk.split("\n");
 
           for (const line of lines) {
             if (!line) continue;
             try {
               const { choices } = JSON.parse(line);
-              const delta = choices?.[0]?.delta?.content || "";
+              const delta = choices?.[0]?.delta?.content || choices?.[0]?.text || "";
               if (delta) {
                 finalText += delta;
                 setStreamText(finalText);
@@ -94,6 +92,7 @@ export default function PageClient({ chat }: { chat: Chat }) {
       } catch (error) {
         console.error("Error reading stream:", error);
       } finally {
+        reader.releaseLock();
         isHandlingStreamRef.current = false;
       }
     });
