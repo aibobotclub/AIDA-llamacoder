@@ -6,7 +6,7 @@ import { splitByFirstCodeFence } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, use, useEffect, useRef, useState } from "react";
-import { ChatCompletionStream } from "together-ai/lib/ChatCompletionStream.mjs";
+import { ChatCompletionStream } from "together-ai";
 import ChatBox from "./chat-box";
 import ChatLog from "./chat-log";
 import CodeViewer from "./code-viewer";
